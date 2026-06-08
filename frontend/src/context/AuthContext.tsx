@@ -6,7 +6,9 @@ interface AuthState {
   role: UserRole | null;
   userName: string | null;
   userEmail: string | null;
+  userAvatarUrl: string | null;
   setSession: (token: string, role: UserRole, name: string, email: string) => void;
+  updateProfileInfo: (name: string, avatarUrl: string | null) => void;
   clearSession: () => void;
 }
 
@@ -25,6 +27,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [userEmail, setUserEmail] = useState<string | null>(() =>
     window.localStorage.getItem("teamsync.userEmail"),
   );
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(() =>
+    window.localStorage.getItem("teamsync.userAvatarUrl"),
+  );
 
   const value = useMemo<AuthState>(
     () => ({
@@ -32,6 +37,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       role,
       userName,
       userEmail,
+      userAvatarUrl,
       setSession: (nextToken, nextRole, name, email) => {
         window.localStorage.setItem("teamsync.accessToken", nextToken);
         window.localStorage.setItem("teamsync.role", nextRole);
@@ -42,18 +48,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUserName(name);
         setUserEmail(email);
       },
+      updateProfileInfo: (name, avatarUrl) => {
+        window.localStorage.setItem("teamsync.userName", name);
+        if (avatarUrl) {
+          window.localStorage.setItem("teamsync.userAvatarUrl", avatarUrl);
+        } else {
+          window.localStorage.removeItem("teamsync.userAvatarUrl");
+        }
+        setUserName(name);
+        setUserAvatarUrl(avatarUrl);
+      },
       clearSession: () => {
         window.localStorage.removeItem("teamsync.accessToken");
         window.localStorage.removeItem("teamsync.role");
         window.localStorage.removeItem("teamsync.userName");
         window.localStorage.removeItem("teamsync.userEmail");
+        window.localStorage.removeItem("teamsync.userAvatarUrl");
         setToken(null);
         setRole(null);
         setUserName(null);
         setUserEmail(null);
+        setUserAvatarUrl(null);
       },
     }),
-    [role, token, userName, userEmail],
+    [role, token, userName, userEmail, userAvatarUrl],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

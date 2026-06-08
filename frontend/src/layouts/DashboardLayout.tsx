@@ -53,7 +53,7 @@ const navItems = [
 ];
 
 export default function DashboardLayout() {
-  const { userName, clearSession } = useAuth();
+  const { userName, userAvatarUrl, clearSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -295,6 +295,7 @@ export default function DashboardLayout() {
             spacing={isSidebarCollapsed ? 0 : 1.5}
           >
             <Avatar
+              src={userAvatarUrl || undefined}
               onClick={handleAvatarClick}
               sx={{
                 width: 34,
@@ -436,6 +437,7 @@ export default function DashboardLayout() {
 
             {/* Avatar Profile Popover trigger */}
             <Avatar
+              src={userAvatarUrl || undefined}
               onClick={handleAvatarClick}
               sx={{
                 width: 36,

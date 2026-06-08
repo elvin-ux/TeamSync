@@ -8,6 +8,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import RegisterPage from "./pages/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
   return (
@@ -31,7 +32,7 @@ export default function App() {
           <Route path="/tasks" element={<PlaceholderPage title="Tasks" />} />
           <Route path="/tasks/:id" element={<PlaceholderPage title="Task Details" />} />
           <Route path="/team" element={<PlaceholderPage title="Team" />} />
-          <Route path="/profile" element={<PlaceholderPage title="Profile" />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
           <Route path="/notifications" element={<PlaceholderPage title="Notifications" />} />
 
