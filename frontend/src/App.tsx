@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import DashboardLayout from "./layouts/DashboardLayout";
+import AuthLayout from "./layouts/AuthLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import LandingPage from "./pages/LandingPage";
@@ -13,9 +14,13 @@ export default function App() {
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Auth routes wrapped in AuthLayout */}
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      </Route>
 
       {/* Protected routes – require valid JWT */}
       <Route element={<ProtectedRoute />}>

@@ -14,68 +14,102 @@ export const colors = {
   info: "#38BDF8",
 };
 
-export const theme = createTheme({
-  palette: {
-    mode: "dark",
-    background: {
-      default: colors.backgroundPrimary,
-      paper: colors.workspaceSurface,
-    },
-    primary: {
-      main: colors.primaryAccent,
-      light: colors.secondaryAccent,
-    },
-    success: {
-      main: colors.success,
-    },
-    warning: {
-      main: colors.warning,
-    },
-    error: {
-      main: colors.danger,
-    },
-    info: {
-      main: colors.info,
-    },
-    divider: colors.border,
-    text: {
-      primary: "#F8FAFC",
-      secondary: "#94A3B8",
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    h1: { fontSize: 48, fontWeight: 700, letterSpacing: 0 },
-    h2: { fontSize: 36, fontWeight: 700, letterSpacing: 0 },
-    h3: { fontSize: 28, fontWeight: 700, letterSpacing: 0 },
-    h4: { fontSize: 22, fontWeight: 700, letterSpacing: 0 },
-    body1: { fontSize: 16, letterSpacing: 0 },
-    caption: { fontSize: 13, letterSpacing: 0 },
-  },
-  shape: {
-    borderRadius: 8,
-  },
-  components: {
-    MuiButton: {
-      defaultProps: {
-        disableElevation: true,
+export const lightColors = {
+  backgroundPrimary: "#F8FAFC", // Slate 50
+  backgroundSecondary: "#FFFFFF", // White
+  workspaceSurface: "#F1F5F9", // Slate 100
+  elevatedSurface: "#E2E8F0", // Slate 200
+  border: "#CBD5E1", // Slate 300
+  primaryAccent: "#7C3AED", // Purple
+  secondaryAccent: "#8B5CF6", // Light Purple
+  success: "#10B981", // Success green
+  warning: "#F59E0B",
+  danger: "#EF4444",
+  info: "#3B82F6",
+};
+
+export const getThemeColors = (mode: "light" | "dark") => {
+  return mode === "light" ? lightColors : colors;
+};
+
+export const createAppTheme = (mode: "light" | "dark") => {
+  const activeColors = getThemeColors(mode);
+
+  return createTheme({
+    palette: {
+      mode,
+      background: {
+        default: activeColors.backgroundPrimary,
+        paper: activeColors.workspaceSurface,
       },
-      styleOverrides: {
-        root: {
-          minHeight: 44,
-          borderRadius: 8,
-          textTransform: "none",
-          fontWeight: 700,
+      primary: {
+        main: activeColors.primaryAccent,
+        light: activeColors.secondaryAccent,
+      },
+      success: {
+        main: activeColors.success,
+      },
+      warning: {
+        main: activeColors.warning,
+      },
+      error: {
+        main: activeColors.danger,
+      },
+      info: {
+        main: activeColors.info,
+      },
+      divider: activeColors.border,
+      text: {
+        primary: mode === "light" ? "#0F172A" : "#F8FAFC", // Slate 900 vs Slate 50
+        secondary: mode === "light" ? "#475569" : "#94A3B8", // Slate 600 vs Slate 400
+      },
+    },
+    typography: {
+      fontFamily: '"Inter", "Satoshi", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      h1: { fontSize: 48, fontWeight: 700, letterSpacing: 0 },
+      h2: { fontSize: 36, fontWeight: 700, letterSpacing: 0 },
+      h3: { fontSize: 28, fontWeight: 700, letterSpacing: 0 },
+      h4: { fontSize: 22, fontWeight: 700, letterSpacing: 0 },
+      body1: { fontSize: 16, letterSpacing: 0 },
+      caption: { fontSize: 13, letterSpacing: 0 },
+    },
+    shape: {
+      borderRadius: 8,
+    },
+    components: {
+      MuiButton: {
+        defaultProps: {
+          disableElevation: true,
+        },
+        styleOverrides: {
+          root: {
+            minHeight: 44,
+            borderRadius: 8,
+            textTransform: "none",
+            fontWeight: 700,
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: "none",
+            border: `1px solid ${activeColors.border}`,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: activeColors.border,
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: activeColors.primaryAccent,
+            },
+          },
         },
       },
     },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundImage: "none",
-          border: `1px solid ${colors.border}`,
-        },
-      },
-    },
-  },
-});
+  });
+};
