@@ -6,6 +6,8 @@ import com.teamsync.entity.User;
 import com.teamsync.exception.ResourceNotFoundException;
 import com.teamsync.repository.UserRepository;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+
+    @Transactional(readOnly = true)
+    public List<UserProfileResponse> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
     @Transactional(readOnly = true)
     public UserProfileResponse getUserProfile(String email) {

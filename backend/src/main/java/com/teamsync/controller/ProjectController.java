@@ -4,6 +4,8 @@ import com.teamsync.dto.common.ApiResponse;
 import com.teamsync.dto.project.CreateProjectRequest;
 import com.teamsync.dto.project.ProjectResponse;
 import com.teamsync.dto.project.UpdateProjectRequest;
+import com.teamsync.dto.project.AddMemberRequest;
+import com.teamsync.dto.project.ProjectMemberResponse;
 import com.teamsync.entity.ProjectStatus;
 import com.teamsync.service.ProjectService;
 import jakarta.validation.Valid;
@@ -70,5 +72,31 @@ public class ProjectController {
             @RequestParam("status") ProjectStatus status) {
         ProjectResponse response = projectService.updateProjectStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Project status updated successfully", response));
+    }
+
+    @GetMapping("/{id}/members")
+    public ResponseEntity<ApiResponse<List<ProjectMemberResponse>>> getProjectMembers(@PathVariable UUID id) {
+        List<ProjectMemberResponse> response = projectService.getProjectMembers(id);
+        return ResponseEntity.ok(ApiResponse.success("Project members retrieved successfully", response));
+    }
+
+    @PostMapping("/{id}/members")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEAD')")
+    public ResponseEntity<ApiResponse<ProjectMemberResponse>> addProjectMember(
+            @PathVariable UUID id,
+            @Valid @RequestBody AddMemberRequest request) {
+        ProjectMemberResponse response = projectService.addProjectMember(id, request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Member added to project successfully", response));
+    }
+
+    @DeleteMapping("/{id}/members/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LEAD')")
+    public ResponseEntity<ApiResponse<Void>> removeProjectMember(
+            @PathVariable UUID id,
+            @PathVariable UUID userId) {
+        projectService.removeProjectMember(id, userId);
+        return ResponseEntity.ok(ApiResponse.success("Member removed from project successfully", null));
     }
 }

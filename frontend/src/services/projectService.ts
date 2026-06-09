@@ -1,5 +1,6 @@
 import type { ApiResponse } from "../types/common";
 import type { Project, CreateProjectRequest, UpdateProjectRequest, ProjectStatus } from "../types/project";
+import type { ProjectMember, AddMemberRequest } from "../types/projectMember";
 import { api } from "./api";
 
 export const projectService = {
@@ -32,5 +33,19 @@ export const projectService = {
       params: { status }
     });
     return response.data.data;
+  },
+
+  getProjectMembers: async (projectId: string): Promise<ProjectMember[]> => {
+    const response = await api.get<ApiResponse<ProjectMember[]>>(`/projects/${projectId}/members`);
+    return response.data.data;
+  },
+
+  addProjectMember: async (projectId: string, data: AddMemberRequest): Promise<ProjectMember> => {
+    const response = await api.post<ApiResponse<ProjectMember>>(`/projects/${projectId}/members`, data);
+    return response.data.data;
+  },
+
+  removeProjectMember: async (projectId: string, userId: string): Promise<void> => {
+    await api.delete<ApiResponse<void>>(`/projects/${projectId}/members/${userId}`);
   }
 };

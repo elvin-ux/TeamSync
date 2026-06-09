@@ -24,4 +24,9 @@ export const userService = {
     });
     return response.data.data;
   },
+
+  getUsers: async (): Promise<UserProfile[]> => {
+    const response = await api.get<ApiResponse<UserProfile[]>>("/users");
+    return response.data.data;
+  },
 };

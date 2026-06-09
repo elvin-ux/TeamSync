@@ -3,13 +3,17 @@ package com.teamsync.service;
 import com.teamsync.dto.project.CreateProjectRequest;
 import com.teamsync.dto.project.ProjectResponse;
 import com.teamsync.dto.project.UpdateProjectRequest;
+import com.teamsync.dto.project.AddMemberRequest;
+import com.teamsync.dto.project.ProjectMemberResponse;
 import com.teamsync.entity.Project;
+import com.teamsync.entity.ProjectMember;
 import com.teamsync.entity.ProjectPriority;
 import com.teamsync.entity.ProjectStatus;
 import com.teamsync.entity.User;
 import com.teamsync.exception.ResourceNotFoundException;
 import com.teamsync.repository.ProjectRepository;
 import com.teamsync.repository.UserRepository;
+import com.teamsync.repository.ProjectMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +28,7 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> getProjects() {
@@ -130,5 +135,63 @@ public class ProjectService {
         } catch (IllegalArgumentException e) {
             return ProjectPriority.MEDIUM;
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectMemberResponse> getProjectMembers(UUID projectId) {
+        if (!projectRepository.existsById(projectId)) {
+            throw new ResourceNotFoundException("Project not found with ID: " + projectId);
+        }
+        return projectMemberRepository.findByProjectId(projectId)
+                .stream()
+                .map(this::mapToMemberResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProjectMemberResponse addProjectMember(UUID projectId, AddMemberRequest request) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + projectId));
+
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + request.userId()));
+
+        if (projectMemberRepository.existsByProjectIdAndUserId(projectId, request.userId())) {
+            throw new IllegalArgumentException("User is already a member of this project");
+        }
+
+        String roleInProject = request.roleInProject() != null && !request.roleInProject().isBlank()
+                ? request.roleInProject()
+                : "MEMBER";
+
+        ProjectMember pm = ProjectMember.builder()
+                .project(project)
+                .user(user)
+                .roleInProject(roleInProject)
+                .build();
+
+        ProjectMember saved = projectMemberRepository.save(pm);
+        return mapToMemberResponse(saved);
+    }
+
+    @Transactional
+    public void removeProjectMember(UUID projectId, UUID userId) {
+        ProjectMember pm = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found in this project with User ID: " + userId));
+        projectMemberRepository.delete(pm);
+    }
+
+    private ProjectMemberResponse mapToMemberResponse(ProjectMember pm) {
+        return new ProjectMemberResponse(
+                pm.getId(),
+                pm.getUser().getId(),
+                pm.getUser().getName(),
+                pm.getUser().getEmail(),
+                pm.getUser().getRole().name(),
+                pm.getUser().getAvatarUrl(),
+                pm.getUser().getDepartment(),
+                pm.getRoleInProject(),
+                pm.getJoinedAt()
+        );
     }
 }

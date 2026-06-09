@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
+  Avatar,
   Box,
   Button,
   Card,
@@ -41,6 +42,7 @@ import { projectService } from "../services/projectService";
 import { useAuth } from "../hooks/useAuth";
 import { getThemeColors } from "../theme/theme";
 import ProjectFormDialog from "../components/project/ProjectFormDialog";
+import AddMemberDialog from "../components/project/AddMemberDialog";
 import { getStatusColor, getPriorityColor } from "./ProjectsPage";
 import type { ProjectStatus } from "../types/project";
 
@@ -82,6 +84,7 @@ export default function ProjectWorkspacePage() {
   const [tabValue, setTabValue] = useState(0);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
 
   const canEdit = role === "ADMIN" || role === "LEAD";
@@ -92,6 +95,21 @@ export default function ProjectWorkspacePage() {
     queryKey: ["project", id],
     queryFn: () => projectService.getProject(id!),
     enabled: !!id,
+  });
+
+  // Query project members
+  const { data: members = [], isLoading: isMembersLoading } = useQuery({
+    queryKey: ["projectMembers", id],
+    queryFn: () => projectService.getProjectMembers(id!),
+    enabled: !!id,
+  });
+
+  // Remove member mutation
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) => projectService.removeProjectMember(id!, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectMembers", id] });
+    },
   });
 
   // Mutations
@@ -462,32 +480,117 @@ export default function ProjectWorkspacePage() {
       </CustomTabPanel>
 
       <CustomTabPanel value={tabValue} index={2}>
-        {/* Members Empty State Placeholder */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-            px: 2,
-            textAlign: "center",
-            borderRadius: 4,
-            bgcolor: "rgba(255,255,255,0.01)",
-            border: `1px dashed ${theme.palette.divider}`,
-          }}
-        >
-          <GroupsRoundedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 2, opacity: 0.6 }} />
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
-            No members added yet
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 380, mb: 3, fontSize: 13.5 }}>
-            Project memberships and team collaboration features are coming soon in Phase 5.
-          </Typography>
-          <Button variant="outlined" disabled size="small">
-            Add team members
-          </Button>
-        </Box>
+        {isMembersLoading ? (
+          <Box sx={{ display: "grid", placeItems: "center", py: 4 }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : (
+          <Stack spacing={3}>
+            {canEdit && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  startIcon={<GroupsRoundedIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => setIsAddMemberOpen(true)}
+                  size="small"
+                >
+                  Add Member
+                </Button>
+              </Box>
+            )}
+
+            {members.length > 0 ? (
+              <Grid container spacing={2.5}>
+                {members.map((member) => (
+                  <Grid item xs={12} sm={6} md={4} key={member.membershipId}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
+                        borderRadius: 3,
+                        border: `1px solid ${theme.palette.divider}`,
+                        position: "relative",
+                      }}
+                    >
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar
+                          src={member.avatarUrl || undefined}
+                          sx={{
+                            width: 44,
+                            height: 44,
+                            bgcolor: activeColors.primaryAccent,
+                            fontSize: 16,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {member.name.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={700} noWrap>
+                            {member.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                            {member.email}
+                          </Typography>
+                          {member.department && (
+                            <Typography variant="caption" color="primary.main" fontWeight={600} display="block" noWrap sx={{ mt: 0.25 }}>
+                              {member.department}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {/* Remove button: only visible to leads/admins, and cannot remove project creator */}
+                        {canEdit && member.userId !== project.createdById && (
+                          <IconButton
+                            color="error"
+                            size="small"
+                            onClick={() => removeMemberMutation.mutate(member.userId)}
+                            disabled={removeMemberMutation.isPending}
+                            sx={{ alignSelf: "flex-start" }}
+                          >
+                            {removeMemberMutation.isPending && removeMemberMutation.variables === member.userId ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <DeleteRoundedIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  py: 6,
+                  px: 2,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  bgcolor: "rgba(255,255,255,0.01)",
+                  border: `1px dashed ${theme.palette.divider}`,
+                }}
+              >
+                <GroupsRoundedIcon sx={{ fontSize: 44, color: "text.secondary", mb: 2, opacity: 0.6 }} />
+                <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
+                  No members added yet
+                </Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 380, mb: 3, fontSize: 13.5 }}>
+                  Add team members to this project to collaborate and assign tasks.
+                </Typography>
+                {canEdit && (
+                  <Button variant="outlined" size="small" onClick={() => setIsAddMemberOpen(true)}>
+                    Add team members
+                  </Button>
+                )}
+              </Box>
+            )}
+          </Stack>
+        )}
       </CustomTabPanel>
 
       {/* Project Form Dialog (for edit mode) */}
@@ -530,6 +633,14 @@ export default function ProjectWorkspacePage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Add Member Dialog */}
+      <AddMemberDialog
+        open={isAddMemberOpen}
+        onClose={() => setIsAddMemberOpen(false)}
+        projectId={id!}
+        currentMemberUserIds={members.map((m) => m.userId)}
+      />
     </Stack>
   );
 }
