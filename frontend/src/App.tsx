@@ -9,6 +9,8 @@ import LoginPage from "./pages/LoginPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectWorkspacePage from "./pages/ProjectWorkspacePage";
 
 export default function App() {
   return (
@@ -27,8 +29,8 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/projects" element={<PlaceholderPage title="Projects" />} />
-          <Route path="/projects/:id" element={<PlaceholderPage title="Project Workspace" />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectWorkspacePage />} />
           <Route path="/tasks" element={<PlaceholderPage title="Tasks" />} />
           <Route path="/tasks/:id" element={<PlaceholderPage title="Task Details" />} />
           <Route path="/team" element={<PlaceholderPage title="Team" />} />
