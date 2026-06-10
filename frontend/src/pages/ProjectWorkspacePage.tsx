@@ -26,6 +26,8 @@ import {
   Typography,
   useTheme,
   Alert,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
@@ -38,8 +40,11 @@ import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import ListAltRoundedIcon from "@mui/icons-material/ListAltRounded";
+import ViewListRoundedIcon from "@mui/icons-material/ViewListRounded";
+import ViewWeekRoundedIcon from "@mui/icons-material/ViewWeekRounded";
 
 import { projectService } from "../services/projectService";
+import KanbanBoard from "../components/project/KanbanBoard";
 import { useAuth } from "../hooks/useAuth";
 import { getThemeColors } from "../theme/theme";
 import ProjectFormDialog from "../components/project/ProjectFormDialog";
@@ -106,6 +111,7 @@ export default function ProjectWorkspacePage() {
   const [taskStatusMenuAnchor, setTaskStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [activeTaskForStatus, setActiveTaskForStatus] = useState<string | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
+  const [taskView, setTaskView] = useState<"list" | "board">("list");
 
   const canEdit = role === "ADMIN" || role === "LEAD";
   const canDelete = role === "ADMIN";
@@ -501,8 +507,29 @@ export default function ProjectWorkspacePage() {
           </Box>
         ) : (
           <Stack spacing={3}>
-            {canEdit && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+              <ToggleButtonGroup
+                value={taskView}
+                exclusive
+                onChange={(_e, val) => val && setTaskView(val)}
+                size="small"
+                aria-label="task view"
+              >
+                <ToggleButton value="list" aria-label="list view" sx={{ px: 2, py: 0.5 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <ViewListRoundedIcon sx={{ fontSize: 16 }} />
+                    <Typography variant="caption" fontWeight={700}>List</Typography>
+                  </Stack>
+                </ToggleButton>
+                <ToggleButton value="board" aria-label="board view" sx={{ px: 2, py: 0.5 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <ViewWeekRoundedIcon sx={{ fontSize: 16 }} />
+                    <Typography variant="caption" fontWeight={700}>Board</Typography>
+                  </Stack>
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {canEdit && (
                 <Button
                   variant="contained"
                   startIcon={<AddRoundedIcon />}
@@ -514,164 +541,180 @@ export default function ProjectWorkspacePage() {
                 >
                   Create Task
                 </Button>
-              </Box>
-            )}
+              )}
+            </Box>
 
             {tasks.length > 0 ? (
-              <Stack spacing={2}>
-                {tasks.map((task) => {
-                  const taskStatusColors = getTaskStatusColors(task.status, theme.palette.mode);
-                  const deadlineFormatted = task.deadline
-                    ? new Date(task.deadline).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : "No deadline";
+              taskView === "list" ? (
+                <Stack spacing={2}>
+                  {tasks.map((task) => {
+                    const taskStatusColors = getTaskStatusColors(task.status, theme.palette.mode);
+                    const deadlineFormatted = task.deadline
+                      ? new Date(task.deadline).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "No deadline";
 
-                  return (
-                    <Card
-                      key={task.id}
-                      sx={{
-                        p: 2.5,
-                        bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
-                        borderRadius: 3,
-                        border: `1px solid ${theme.palette.divider}`,
-                        position: "relative",
-                        transition: "all 200ms ease",
-                        "&:hover": {
-                          borderColor: activeColors.primaryAccent,
-                        },
-                      }}
-                    >
-                      <Grid container spacing={2} alignItems="center">
-                        {/* Task Status click/selector */}
-                        <Grid item xs={12} sm={3} md={2.5}>
-                          <Chip
-                            label={task.status.replace("_", " ")}
-                            onClick={(e) => {
-                              setActiveTaskForStatus(task.id);
-                              setTaskStatusMenuAnchor(e.currentTarget);
-                            }}
-                            onDelete={(e) => {
-                              setActiveTaskForStatus(task.id);
-                              setTaskStatusMenuAnchor(e.currentTarget);
-                            }}
-                            deleteIcon={<ArrowDropDownRoundedIcon />}
-                            sx={{
-                              bgcolor: taskStatusColors.bg,
-                              color: taskStatusColors.text,
-                              fontWeight: 700,
-                              fontSize: 12,
-                              cursor: "pointer",
-                              "& .MuiChip-deleteIcon": {
-                                color: taskStatusColors.text,
-                                "&:hover": {
-                                  color: taskStatusColors.text,
-                                },
-                              },
-                              "&:hover": {
-                                opacity: 0.85,
-                              },
-                            }}
-                          />
-                        </Grid>
-
-                        {/* Title & Description */}
-                        <Grid item xs={12} sm={5} md={5.5}>
-                          <Typography variant="body2" fontWeight={700}>
-                            {task.title}
-                          </Typography>
-                          {task.description && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{
-                                display: "-webkit-box",
-                                WebkitLineClamp: 1,
-                                WebkitBoxOrient: "vertical",
-                                overflow: "hidden",
+                    return (
+                      <Card
+                        key={task.id}
+                        sx={{
+                          p: 2.5,
+                          bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
+                          borderRadius: 3,
+                          border: `1px solid ${theme.palette.divider}`,
+                          position: "relative",
+                          transition: "all 200ms ease",
+                          "&:hover": {
+                            borderColor: activeColors.primaryAccent,
+                          },
+                        }}
+                      >
+                        <Grid container spacing={2} alignItems="center">
+                          {/* Task Status click/selector */}
+                          <Grid item xs={12} sm={3} md={2.5}>
+                            <Chip
+                              label={task.status.replace("_", " ")}
+                              onClick={(e) => {
+                                setActiveTaskForStatus(task.id);
+                                setTaskStatusMenuAnchor(e.currentTarget);
                               }}
-                            >
-                              {task.description}
-                            </Typography>
-                          )}
-                        </Grid>
+                              onDelete={(e) => {
+                                setActiveTaskForStatus(task.id);
+                                setTaskStatusMenuAnchor(e.currentTarget);
+                              }}
+                              deleteIcon={<ArrowDropDownRoundedIcon />}
+                              sx={{
+                                bgcolor: taskStatusColors.bg,
+                                color: taskStatusColors.text,
+                                fontWeight: 700,
+                                fontSize: 12,
+                                cursor: "pointer",
+                                "& .MuiChip-deleteIcon": {
+                                  color: taskStatusColors.text,
+                                  "&:hover": {
+                                    color: taskStatusColors.text,
+                                  },
+                                },
+                                "&:hover": {
+                                  opacity: 0.85,
+                                },
+                              }}
+                            />
+                          </Grid>
 
-                        {/* Assignee & Priority & Deadline */}
-                        <Grid item xs={12} sm={4} md={4}>
-                          <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2.5}>
-                            <Tooltip title={task.assignedToName ? `Assigned to ${task.assignedToName}` : "Unassigned"}>
-                              <Avatar
+                          {/* Title & Description */}
+                          <Grid item xs={12} sm={5} md={5.5}>
+                            <Typography variant="body2" fontWeight={700}>
+                              {task.title}
+                            </Typography>
+                            {task.description && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
                                 sx={{
-                                  width: 28,
-                                  height: 28,
-                                  bgcolor: task.assignedToName ? activeColors.secondaryAccent : "action.disabledBackground",
-                                  fontSize: 12,
-                                  fontWeight: 700,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 1,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
                                 }}
                               >
-                                {task.assignedToName ? task.assignedToName.charAt(0).toUpperCase() : "?"}
-                              </Avatar>
-                            </Tooltip>
-
-                            <Chip
-                              label={task.priority}
-                              size="small"
-                              color={getPriorityColor(task.priority as any)}
-                              sx={{ fontWeight: 800, fontSize: 10, height: 20 }}
-                            />
-
-                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: "text.secondary" }}>
-                              <CalendarMonthRoundedIcon sx={{ fontSize: 14 }} />
-                              <Typography variant="caption" fontWeight={600}>
-                                {deadlineFormatted}
+                                {task.description}
                               </Typography>
-                            </Stack>
-
-                            {/* Estimate */}
-                            {task.estimatedHours && (
-                              <Chip
-                                label={`${task.estimatedHours}h`}
-                                size="small"
-                                variant="outlined"
-                                sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
-                              />
                             )}
+                          </Grid>
 
-                            {/* CRUD Actions */}
-                            {canEdit && (
-                              <Stack direction="row" spacing={0.5}>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    setSelectedTask(task);
-                                    setIsTaskFormOpen(true);
+                          {/* Assignee & Priority & Deadline */}
+                          <Grid item xs={12} sm={4} md={4}>
+                            <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2.5}>
+                              <Tooltip title={task.assignedToName ? `Assigned to ${task.assignedToName}` : "Unassigned"}>
+                                <Avatar
+                                  sx={{
+                                    width: 28,
+                                    height: 28,
+                                    bgcolor: task.assignedToName ? activeColors.secondaryAccent : "action.disabledBackground",
+                                    fontSize: 12,
+                                    fontWeight: 700,
                                   }}
-                                  sx={{ color: "text.secondary" }}
                                 >
-                                  <EditRoundedIcon sx={{ fontSize: 16 }} />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => deleteTaskMutation.mutate(task.id)}
-                                  disabled={deleteTaskMutation.isPending}
-                                >
-                                  {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.id ? (
-                                    <CircularProgress size={14} color="inherit" />
-                                  ) : (
-                                    <DeleteRoundedIcon sx={{ fontSize: 16 }} />
-                                  )}
-                                </IconButton>
+                                  {task.assignedToName ? task.assignedToName.charAt(0).toUpperCase() : "?"}
+                                </Avatar>
+                              </Tooltip>
+
+                              <Chip
+                                label={task.priority}
+                                size="small"
+                                color={getPriorityColor(task.priority as any)}
+                                sx={{ fontWeight: 800, fontSize: 10, height: 20 }}
+                              />
+
+                              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: "text.secondary" }}>
+                                <CalendarMonthRoundedIcon sx={{ fontSize: 14 }} />
+                                <Typography variant="caption" fontWeight={600}>
+                                  {deadlineFormatted}
+                                </Typography>
                               </Stack>
-                            )}
-                          </Stack>
+
+                              {/* Estimate */}
+                              {task.estimatedHours && (
+                                <Chip
+                                  label={`${task.estimatedHours}h`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+                                />
+                              )}
+
+                              {/* CRUD Actions */}
+                              {canEdit && (
+                                <Stack direction="row" spacing={0.5}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      setSelectedTask(task);
+                                      setIsTaskFormOpen(true);
+                                    }}
+                                    sx={{ color: "text.secondary" }}
+                                  >
+                                    <EditRoundedIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => deleteTaskMutation.mutate(task.id)}
+                                    disabled={deleteTaskMutation.isPending}
+                                  >
+                                    {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.id ? (
+                                      <CircularProgress size={14} color="inherit" />
+                                    ) : (
+                                      <DeleteRoundedIcon sx={{ fontSize: 16 }} />
+                                    )}
+                                  </IconButton>
+                                </Stack>
+                              )}
+                            </Stack>
+                          </Grid>
                         </Grid>
-                      </Grid>
-                    </Card>
-                  );
-                })}
-              </Stack>
+                      </Card>
+                    );
+                  })}
+                </Stack>
+              ) : (
+                <KanbanBoard
+                  tasks={tasks}
+                  onStatusChange={(taskId, status) =>
+                    updateTaskStatusMutation.mutate({ taskId, status })
+                  }
+                  onEditTask={(task) => {
+                    setSelectedTask(task);
+                    setIsTaskFormOpen(true);
+                  }}
+                  onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+                  canEdit={canEdit}
+                  activeColors={activeColors}
+                />
+              )
             ) : (
               <Box
                 sx={{
