@@ -34,10 +34,13 @@ import {
   useTheme,
   Paper,
   ListItemIcon,
+  Badge,
 } from "@mui/material";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
 import { authService } from "../services/authService";
+import { notificationService } from "../services/notificationService";
 import { useThemeMode } from "../context/ThemeContext";
 import { getThemeColors } from "../theme/theme";
 import CommandPalette from "../components/layout/CommandPalette";
@@ -59,6 +62,13 @@ export default function DashboardLayout() {
   const theme = useTheme();
   const { mode, toggleThemeMode } = useThemeMode();
   const activeColors = getThemeColors(mode);
+
+  // Fetch unread notifications count
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["unreadNotificationsCount"],
+    queryFn: notificationService.getUnreadCount,
+    refetchInterval: 15000,
+  });
 
   // Layout states persisted in localStorage
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -431,7 +441,9 @@ export default function DashboardLayout() {
             {/* Notification bell */}
             <Tooltip title="Notifications">
               <IconButton onClick={() => setNotificationsOpen(true)} sx={{ color: "text.secondary" }}>
-                <NotificationsRoundedIcon />
+                <Badge badgeContent={unreadCount} color="error" max={99}>
+                  <NotificationsRoundedIcon />
+                </Badge>
               </IconButton>
             </Tooltip>
 
@@ -704,7 +716,11 @@ export default function DashboardLayout() {
           ))}
           <BottomNavigationAction
             label="Alerts"
-            icon={<NotificationsRoundedIcon />}
+            icon={
+              <Badge badgeContent={unreadCount} color="error" max={99}>
+                <NotificationsRoundedIcon />
+              </Badge>
+            }
             onClick={() => setNotificationsOpen(true)}
             sx={{
               color: "text.secondary",

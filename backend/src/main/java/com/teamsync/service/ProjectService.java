@@ -30,6 +30,7 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final ActivityLogService activityLogService;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> getProjects() {
@@ -180,6 +181,16 @@ public class ProjectService {
             currentEmail = auth.getName();
         }
         activityLogService.logActivity(projectId, currentEmail, "MEMBER_ADDED", user.getName());
+
+        // Trigger Notification
+        if (!user.getEmail().equals(currentEmail)) {
+            notificationService.createNotification(
+                    user,
+                    "Added to Project",
+                    "You have been added to the project '" + project.getName() + "'",
+                    "MEMBER_ADDED"
+            );
+        }
 
         return mapToMemberResponse(saved);
     }

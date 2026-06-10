@@ -24,6 +24,7 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final ActivityLogService activityLogService;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
@@ -77,6 +78,14 @@ public class TaskService {
         activityLogService.logActivity(project.getId(), userEmail, "TASK_CREATED", saved.getTitle());
         if (assignee != null) {
             activityLogService.logActivity(project.getId(), userEmail, "TASK_ASSIGNED", saved.getTitle() + " to " + assignee.getName());
+            if (!assignee.getEmail().equals(userEmail)) {
+                notificationService.createNotification(
+                        assignee,
+                        "New Task Assigned",
+                        "You have been assigned the task '" + saved.getTitle() + "' in project '" + project.getName() + "'",
+                        "TASK_ASSIGNED"
+                );
+            }
         }
 
         return mapToResponse(saved);
@@ -116,9 +125,37 @@ public class TaskService {
 
         if (isCompletedTransition) {
             activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_COMPLETED", updated.getTitle());
+            final String actorEmail = currentEmail;
+            User taskCreator = updated.getCreatedBy();
+            User projectOwner = updated.getProject().getCreatedBy();
+            
+            if (taskCreator != null && !taskCreator.getEmail().equals(actorEmail)) {
+                notificationService.createNotification(
+                        taskCreator,
+                        "Task Completed",
+                        "'" + updated.getTitle() + "' has been completed by " + (updated.getAssignedTo() != null ? updated.getAssignedTo().getName() : "someone") + " in project '" + updated.getProject().getName() + "'",
+                        "TASK_COMPLETED"
+                );
+            }
+            if (projectOwner != null && !projectOwner.getEmail().equals(actorEmail) && (taskCreator == null || !projectOwner.getId().equals(taskCreator.getId()))) {
+                notificationService.createNotification(
+                        projectOwner,
+                        "Task Completed",
+                        "'" + updated.getTitle() + "' has been completed by " + (updated.getAssignedTo() != null ? updated.getAssignedTo().getName() : "someone") + " in project '" + updated.getProject().getName() + "'",
+                        "TASK_COMPLETED"
+                );
+            }
         }
         if (assigneeChanged && assignee != null) {
             activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_ASSIGNED", updated.getTitle() + " to " + assignee.getName());
+            if (!assignee.getEmail().equals(currentEmail)) {
+                notificationService.createNotification(
+                        assignee,
+                        "New Task Assigned",
+                        "You have been assigned the task '" + updated.getTitle() + "' in project '" + updated.getProject().getName() + "'",
+                        "TASK_ASSIGNED"
+                );
+            }
         }
 
         return mapToResponse(updated);
@@ -147,6 +184,27 @@ public class TaskService {
                 currentEmail = auth.getName();
             }
             activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_COMPLETED", updated.getTitle());
+            
+            final String actorEmail = currentEmail;
+            User taskCreator = updated.getCreatedBy();
+            User projectOwner = updated.getProject().getCreatedBy();
+            
+            if (taskCreator != null && !taskCreator.getEmail().equals(actorEmail)) {
+                notificationService.createNotification(
+                        taskCreator,
+                        "Task Completed",
+                        "'" + updated.getTitle() + "' has been completed by " + (updated.getAssignedTo() != null ? updated.getAssignedTo().getName() : "someone") + " in project '" + updated.getProject().getName() + "'",
+                        "TASK_COMPLETED"
+                );
+            }
+            if (projectOwner != null && !projectOwner.getEmail().equals(actorEmail) && (taskCreator == null || !projectOwner.getId().equals(taskCreator.getId()))) {
+                notificationService.createNotification(
+                        projectOwner,
+                        "Task Completed",
+                        "'" + updated.getTitle() + "' has been completed by " + (updated.getAssignedTo() != null ? updated.getAssignedTo().getName() : "someone") + " in project '" + updated.getProject().getName() + "'",
+                        "TASK_COMPLETED"
+                );
+            }
         }
 
         return mapToResponse(updated);
@@ -175,6 +233,14 @@ public class TaskService {
                 currentEmail = auth.getName();
             }
             activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_ASSIGNED", updated.getTitle() + " to " + assignee.getName());
+            if (!assignee.getEmail().equals(currentEmail)) {
+                notificationService.createNotification(
+                        assignee,
+                        "New Task Assigned",
+                        "You have been assigned the task '" + updated.getTitle() + "' in project '" + updated.getProject().getName() + "'",
+                        "TASK_ASSIGNED"
+                );
+            }
         }
 
         return mapToResponse(updated);

@@ -26,6 +26,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<CommentResponse> getCommentsByTask(UUID taskId) {
@@ -53,6 +54,31 @@ public class CommentService {
                 .build();
 
         Comment saved = commentRepository.save(comment);
+
+        // Trigger notifications for task assignee and task creator (excluding comment author)
+        User assignee = task.getAssignedTo();
+        User creator = task.getCreatedBy();
+        String commentPreview = comment.getContent().length() > 60
+                ? comment.getContent().substring(0, 57) + "..."
+                : comment.getContent();
+
+        if (assignee != null && !assignee.getEmail().equals(authorEmail)) {
+            notificationService.createNotification(
+                    assignee,
+                    "New Comment on Task",
+                    author.getName() + " commented on '" + task.getTitle() + "': \"" + commentPreview + "\"",
+                    "COMMENT_ADDED"
+            );
+        }
+        if (creator != null && !creator.getEmail().equals(authorEmail) && (assignee == null || !creator.getId().equals(assignee.getId()))) {
+            notificationService.createNotification(
+                    creator,
+                    "New Comment on Task",
+                    author.getName() + " commented on '" + task.getTitle() + "': \"" + commentPreview + "\"",
+                    "COMMENT_ADDED"
+            );
+        }
+
         return mapToResponse(saved);
     }
 
