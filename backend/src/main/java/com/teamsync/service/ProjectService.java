@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -33,17 +34,37 @@ public class ProjectService {
     private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
-    public List<ProjectResponse> getProjects() {
-        return projectRepository.findAllByOrderByCreatedAtDesc()
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public List<ProjectResponse> getProjects(String userEmail, String userRole) {
+        if ("ADMIN".equals(userRole)) {
+            return projectRepository.findAllByOrderByCreatedAtDesc()
+                    .stream()
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        } else {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            return projectMemberRepository.findByUserId(user.getId())
+                    .stream()
+                    .map(ProjectMember::getProject)
+                    .sorted(Comparator.comparing(Project::getCreatedAt).reversed())
+                    .map(this::mapToResponse)
+                    .collect(Collectors.toList());
+        }
     }
 
     @Transactional(readOnly = true)
-    public ProjectResponse getProjectById(UUID id) {
+    public ProjectResponse getProjectById(UUID id, String userEmail, String userRole) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + id));
+
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(id, user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not a member of this project");
+            }
+        }
+
         return mapToResponse(project);
     }
 

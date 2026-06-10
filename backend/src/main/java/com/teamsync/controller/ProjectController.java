@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
@@ -27,14 +29,26 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getProjects() {
-        List<ProjectResponse> response = projectService.getProjects();
+    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getProjects(Authentication authentication) {
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.replace("ROLE_", ""))
+                .findFirst()
+                .orElse("MEMBER");
+        List<ProjectResponse> response = projectService.getProjects(authentication.getName(), role);
         return ResponseEntity.ok(ApiResponse.success("Projects retrieved successfully", response));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProjectResponse>> getProjectById(@PathVariable UUID id) {
-        ProjectResponse response = projectService.getProjectById(id);
+    public ResponseEntity<ApiResponse<ProjectResponse>> getProjectById(
+            @PathVariable UUID id,
+            Authentication authentication) {
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.replace("ROLE_", ""))
+                .findFirst()
+                .orElse("MEMBER");
+        ProjectResponse response = projectService.getProjectById(id, authentication.getName(), role);
         return ResponseEntity.ok(ApiResponse.success("Project retrieved successfully", response));
     }
 

@@ -5,9 +5,7 @@ import com.teamsync.dto.task.TaskResponse;
 import com.teamsync.dto.task.UpdateTaskRequest;
 import com.teamsync.entity.*;
 import com.teamsync.exception.ResourceNotFoundException;
-import com.teamsync.repository.ProjectRepository;
-import com.teamsync.repository.TaskRepository;
-import com.teamsync.repository.UserRepository;
+import com.teamsync.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +21,21 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final ActivityLogService activityLogService;
     private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> getTasksByProject(UUID projectId) {
+    public List<TaskResponse> getTasksByProject(UUID projectId, String userEmail, String userRole) {
         if (!projectRepository.existsById(projectId)) {
             throw new ResourceNotFoundException("Project not found with ID: " + projectId);
+        }
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(projectId, user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not a member of this project");
+            }
         }
         return taskRepository.findByProjectIdOrderByCreatedAtDesc(projectId)
                 .stream()
@@ -38,19 +44,32 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public TaskResponse getTaskById(UUID taskId) {
+    public TaskResponse getTaskById(UUID taskId, String userEmail, String userRole) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not a member of this project");
+            }
+        }
         return mapToResponse(task);
     }
 
     @Transactional
-    public TaskResponse createTask(CreateTaskRequest request, String userEmail) {
+    public TaskResponse createTask(CreateTaskRequest request, String userEmail, String userRole) {
         User creator = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
 
         Project project = projectRepository.findById(request.projectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with ID: " + request.projectId()));
+
+        if (!"ADMIN".equals(userRole)) {
+            if (!projectMemberRepository.existsByProjectIdAndUserId(project.getId(), creator.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to create tasks in this project");
+            }
+        }
 
         User assignee = null;
         if (request.assignedToId() != null) {
@@ -92,9 +111,17 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse updateTask(UUID taskId, UpdateTaskRequest request) {
+    public TaskResponse updateTask(UUID taskId, UpdateTaskRequest request, String userEmail, String userRole) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to update tasks in this project");
+            }
+        }
 
         User assignee = null;
         if (request.assignedToId() != null) {
@@ -162,16 +189,36 @@ public class TaskService {
     }
 
     @Transactional
-    public void deleteTask(UUID taskId) {
+    public void deleteTask(UUID taskId, String userEmail, String userRole) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to delete tasks in this project");
+            }
+        }
         taskRepository.delete(task);
     }
 
     @Transactional
-    public TaskResponse updateTaskStatus(UUID taskId, TaskStatus status) {
+    public TaskResponse updateTaskStatus(UUID taskId, TaskStatus status, String userEmail, String userRole) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+        
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            
+            boolean isAssignee = task.getAssignedTo() != null && task.getAssignedTo().getId().equals(user.getId());
+            boolean isLeadOfProject = "LEAD".equals(userRole) && projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId());
+            
+            if (!isAssignee && !isLeadOfProject) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to update this task status");
+            }
+        }
         
         boolean isCompletedTransition = !TaskStatus.COMPLETED.equals(task.getStatus()) && TaskStatus.COMPLETED.equals(status);
         task.setStatus(status);
@@ -211,9 +258,17 @@ public class TaskService {
     }
 
     @Transactional
-    public TaskResponse assignTask(UUID taskId, UUID userId) {
+    public TaskResponse assignTask(UUID taskId, UUID userId, String userEmail, String userRole) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to assign tasks in this project");
+            }
+        }
 
         User assignee = null;
         if (userId != null) {

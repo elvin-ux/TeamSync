@@ -7,9 +7,7 @@ import com.teamsync.entity.Comment;
 import com.teamsync.entity.Task;
 import com.teamsync.entity.User;
 import com.teamsync.exception.ResourceNotFoundException;
-import com.teamsync.repository.CommentRepository;
-import com.teamsync.repository.TaskRepository;
-import com.teamsync.repository.UserRepository;
+import com.teamsync.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -26,12 +24,20 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
-    public List<CommentResponse> getCommentsByTask(UUID taskId) {
-        if (!taskRepository.existsById(taskId)) {
-            throw new ResourceNotFoundException("Task not found with ID: " + taskId);
+    public List<CommentResponse> getCommentsByTask(UUID taskId, String userEmail, String userRole) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        if (!"ADMIN".equals(userRole)) {
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + userEmail));
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), user.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not a member of this project");
+            }
         }
         return commentRepository.findByTaskIdOrderByCreatedAtAsc(taskId)
                 .stream()
@@ -46,6 +52,12 @@ public class CommentService {
 
         User author = userRepository.findByEmail(authorEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + authorEmail));
+
+        if (!"ADMIN".equals(author.getRole().name())) {
+            if (!projectMemberRepository.existsByProjectIdAndUserId(task.getProject().getId(), author.getId())) {
+                throw new org.springframework.security.access.AccessDeniedException("You are not authorized to comment in this project");
+            }
+        }
 
         Comment comment = Comment.builder()
                 .task(task)

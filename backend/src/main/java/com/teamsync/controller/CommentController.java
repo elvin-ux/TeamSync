@@ -25,8 +25,15 @@ public class CommentController {
     private final CommentService commentService;
 
     @GetMapping("/task/{taskId}")
-    public ResponseEntity<ApiResponse<List<CommentResponse>>> getCommentsByTask(@PathVariable UUID taskId) {
-        List<CommentResponse> response = commentService.getCommentsByTask(taskId);
+    public ResponseEntity<ApiResponse<List<CommentResponse>>> getCommentsByTask(
+            @PathVariable UUID taskId,
+            Authentication authentication) {
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(r -> r.replace("ROLE_", ""))
+                .findFirst()
+                .orElse("MEMBER");
+        List<CommentResponse> response = commentService.getCommentsByTask(taskId, authentication.getName(), role);
         return ResponseEntity.ok(ApiResponse.success("Comments retrieved successfully", response));
     }
 
