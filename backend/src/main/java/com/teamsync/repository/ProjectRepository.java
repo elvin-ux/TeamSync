@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
     List<Project> findAllByOrderByCreatedAtDesc();
     List<Project> findByCreatedBy(User user);
+    List<Project> findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String name, String description);
 }

@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
     List<Task> findByAssignedToIdOrderByCreatedAtDesc(UUID assignedToId);
+    List<Task> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String title, String description);
 }

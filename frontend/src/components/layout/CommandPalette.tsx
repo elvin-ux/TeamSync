@@ -10,6 +10,7 @@ import {
   ListItemText,
   Typography,
   useTheme,
+  CircularProgress,
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -22,9 +23,12 @@ import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
 import { useThemeMode } from "../../context/ThemeContext";
 import { useAuth } from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
+import { useQuery } from "@tanstack/react-query";
+import { searchService } from "../../services/searchService";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -117,32 +121,98 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
     },
   ];
 
+  // Fetch search results from API
+  const { data: searchResults, isLoading } = useQuery({
+    queryKey: ["globalSearch", search],
+    queryFn: () => searchService.searchAll(search),
+    enabled: open && search.trim().length >= 2,
+  });
+
+  // Project search results into command items format
+  const getDynamicResults = () => {
+    const list: any[] = [];
+    if (!searchResults) return list;
+
+    // 1. Projects
+    searchResults.projects.forEach((p) => {
+      list.push({
+        id: `project-${p.id}`,
+        label: p.name,
+        category: "Projects",
+        icon: <FolderRoundedIcon sx={{ color: "primary.main" }} />,
+        action: () => {
+          navigate(`/projects/${p.id}`);
+          onClose();
+        },
+      });
+    });
+
+    // 2. Tasks
+    searchResults.tasks.forEach((t) => {
+      list.push({
+        id: `task-${t.id}`,
+        label: `${t.title} (Project: ${t.projectName})`,
+        category: "Tasks",
+        icon: <TaskAltRoundedIcon sx={{ color: "success.main" }} />,
+        action: () => {
+          navigate(`/projects/${t.projectId}?task=${t.id}`);
+          onClose();
+        },
+      });
+    });
+
+    // 3. Comments
+    searchResults.comments.forEach((c) => {
+      list.push({
+        id: `comment-${c.id}`,
+        label: `"${c.content}" (Task: ${c.taskTitle})`,
+        category: "Comments",
+        icon: <ChatBubbleOutlineRoundedIcon sx={{ color: "info.main" }} />,
+        action: () => {
+          navigate(`/projects/${c.projectId}?task=${c.taskId}`);
+          onClose();
+        },
+      });
+    });
+
+    // 4. Members
+    searchResults.members.forEach((m) => {
+      list.push({
+        id: `member-${m.id}`,
+        label: `${m.name} (${m.email})`,
+        category: "Members",
+        icon: <GroupsRoundedIcon sx={{ color: "warning.main" }} />,
+        action: () => {
+          navigate("/team");
+          onClose();
+        },
+      });
+    });
+
+    return list;
+  };
+
+  const dynamicResults = getDynamicResults();
+
   // Filter commands
-  const filtered = commands.filter((cmd) =>
-    cmd.label.toLowerCase().includes(search.toLowerCase()) ||
-    cmd.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered =
+    search.trim().length >= 2
+      ? dynamicResults
+      : commands.filter(
+          (cmd) =>
+            cmd.label.toLowerCase().includes(search.toLowerCase()) ||
+            cmd.category.toLowerCase().includes(search.toLowerCase())
+        );
 
   // Reset index when search changes
   useEffect(() => {
     setSelectedIndex(0);
   }, [search]);
 
-  // Handle global Ctrl + K
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        if (open) onClose();
-        else onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
-
   // Handle keyboard navigation inside command palette
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (filtered.length === 0) return;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) => (prev + 1) % filtered.length);
@@ -169,6 +239,13 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
       }
     }
   }, [selectedIndex]);
+
+  // Clear search input on open/close
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+    }
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -215,7 +292,7 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
               <InputBase
                 autoFocus
                 fullWidth
-                placeholder="Type a command or search..."
+                placeholder="Search projects, tasks, members or comments..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 sx={{
@@ -227,19 +304,23 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   },
                 }}
               />
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.25,
-                  borderRadius: 1,
-                  bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  border: `1px solid ${theme.palette.divider}`,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                  ESC
-                </Typography>
-              </Box>
+              {isLoading ? (
+                <CircularProgress size={18} sx={{ mr: 1.5 }} />
+              ) : (
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1,
+                    bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    ESC
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
             {/* List results */}
@@ -248,7 +329,6 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
                 <List ref={listRef} disablePadding>
                   {filtered.map((cmd, idx) => {
                     const isSelected = idx === selectedIndex;
-                    // Show category header when it changes
                     const showHeader = idx === 0 || filtered[idx - 1].category !== cmd.category;
 
                     return (
@@ -302,6 +382,11 @@ export default function CommandPalette({ open, onClose }: CommandPaletteProps) {
                               primaryTypographyProps={{
                                 fontWeight: isSelected ? 700 : 500,
                                 fontSize: 14,
+                                sx: {
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                },
                               }}
                             />
                           </ListItemButton>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -112,6 +112,9 @@ export default function ProjectWorkspacePage() {
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [activeTaskForDetails, setActiveTaskForDetails] = useState<Task | undefined>(undefined);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const taskIdParam = searchParams.get("task");
   const [taskStatusMenuAnchor, setTaskStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [activeTaskForStatus, setActiveTaskForStatus] = useState<string | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
@@ -140,6 +143,17 @@ export default function ProjectWorkspacePage() {
     queryFn: () => taskService.getProjectTasks(id!),
     enabled: !!id,
   });
+
+  // Handle task deep linking from URL search query parameter
+  useEffect(() => {
+    if (taskIdParam && tasks.length > 0) {
+      const task = tasks.find((t) => t.id === taskIdParam);
+      if (task) {
+        setActiveTaskForDetails(task);
+        setIsTaskDetailsOpen(true);
+      }
+    }
+  }, [taskIdParam, tasks]);
 
   // Update task status mutation
   const updateTaskStatusMutation = useMutation({
@@ -956,6 +970,11 @@ export default function ProjectWorkspacePage() {
         onClose={() => {
           setIsTaskDetailsOpen(false);
           setActiveTaskForDetails(undefined);
+          if (searchParams.has("task")) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("task");
+            setSearchParams(nextParams);
+          }
         }}
         task={activeTaskForDetails}
       />

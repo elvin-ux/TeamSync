@@ -9,4 +9,5 @@ import java.util.UUID;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
     List<Comment> findByTaskIdOrderByCreatedAtAsc(UUID taskId);
+    List<Comment> findByContentContainingIgnoreCase(String content);
 }
