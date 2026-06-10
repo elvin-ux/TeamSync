@@ -50,6 +50,8 @@ import { getThemeColors } from "../theme/theme";
 import ProjectFormDialog from "../components/project/ProjectFormDialog";
 import AddMemberDialog from "../components/project/AddMemberDialog";
 import TaskFormDialog from "../components/project/TaskFormDialog";
+import TaskDetailsDialog from "../components/project/TaskDetailsDialog";
+import ActivityTimeline from "../components/project/ActivityTimeline";
 import { getStatusColor, getPriorityColor } from "./ProjectsPage";
 import type { ProjectStatus } from "../types/project";
 import { taskService } from "../services/taskService";
@@ -108,6 +110,8 @@ export default function ProjectWorkspacePage() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
+  const [activeTaskForDetails, setActiveTaskForDetails] = useState<Task | undefined>(undefined);
   const [taskStatusMenuAnchor, setTaskStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [activeTaskForStatus, setActiveTaskForStatus] = useState<string | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
@@ -467,14 +471,23 @@ export default function ProjectWorkspacePage() {
       <CustomTabPanel value={tabValue} index={0}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            <Card sx={{ p: 3, bgcolor: "background.paper", borderRadius: 3 }}>
-              <Typography variant="h3" fontWeight={700} sx={{ mb: 2 }}>
-                About Project
-              </Typography>
-              <Typography variant="body1" sx={{ whiteSpace: "pre-line", color: "text.secondary", lineHeight: 1.6 }}>
-                {project.description || "No description provided."}
-              </Typography>
-            </Card>
+            <Stack spacing={3}>
+              <Card sx={{ p: 3, bgcolor: "background.paper", borderRadius: 3 }}>
+                <Typography variant="h3" fontWeight={700} sx={{ mb: 2 }}>
+                  About Project
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: "pre-line", color: "text.secondary", lineHeight: 1.6 }}>
+                  {project.description || "No description provided."}
+                </Typography>
+              </Card>
+
+              <Card sx={{ p: 3, bgcolor: "background.paper", borderRadius: 3 }}>
+                <Typography variant="h3" fontWeight={700} sx={{ mb: 3 }}>
+                  Recent Activity
+                </Typography>
+                <ActivityTimeline projectId={project.id} />
+              </Card>
+            </Stack>
           </Grid>
           <Grid item xs={12} md={4}>
             <Card sx={{ p: 3, bgcolor: "background.paper", borderRadius: 3 }}>
@@ -559,6 +572,10 @@ export default function ProjectWorkspacePage() {
                     return (
                       <Card
                         key={task.id}
+                        onClick={() => {
+                          setActiveTaskForDetails(task);
+                          setIsTaskDetailsOpen(true);
+                        }}
                         sx={{
                           p: 2.5,
                           bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
@@ -566,6 +583,7 @@ export default function ProjectWorkspacePage() {
                           border: `1px solid ${theme.palette.divider}`,
                           position: "relative",
                           transition: "all 200ms ease",
+                          cursor: "pointer",
                           "&:hover": {
                             borderColor: activeColors.primaryAccent,
                           },
@@ -577,10 +595,12 @@ export default function ProjectWorkspacePage() {
                             <Chip
                               label={task.status.replace("_", " ")}
                               onClick={(e) => {
+                                e.stopPropagation();
                                 setActiveTaskForStatus(task.id);
                                 setTaskStatusMenuAnchor(e.currentTarget);
                               }}
                               onDelete={(e) => {
+                                e.stopPropagation();
                                 setActiveTaskForStatus(task.id);
                                 setTaskStatusMenuAnchor(e.currentTarget);
                               }}
@@ -671,7 +691,8 @@ export default function ProjectWorkspacePage() {
                                 <Stack direction="row" spacing={0.5}>
                                   <IconButton
                                     size="small"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setSelectedTask(task);
                                       setIsTaskFormOpen(true);
                                     }}
@@ -682,7 +703,10 @@ export default function ProjectWorkspacePage() {
                                   <IconButton
                                     size="small"
                                     color="error"
-                                    onClick={() => deleteTaskMutation.mutate(task.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteTaskMutation.mutate(task.id);
+                                    }}
                                     disabled={deleteTaskMutation.isPending}
                                   >
                                     {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.id ? (
@@ -711,6 +735,10 @@ export default function ProjectWorkspacePage() {
                     setIsTaskFormOpen(true);
                   }}
                   onDeleteTask={(taskId) => deleteTaskMutation.mutate(taskId)}
+                  onClickCard={(task) => {
+                    setActiveTaskForDetails(task);
+                    setIsTaskDetailsOpen(true);
+                  }}
                   canEdit={canEdit}
                   activeColors={activeColors}
                 />
@@ -920,6 +948,16 @@ export default function ProjectWorkspacePage() {
         }}
         projectId={id!}
         task={selectedTask}
+      />
+
+      {/* Task Details Dialog */}
+      <TaskDetailsDialog
+        open={isTaskDetailsOpen}
+        onClose={() => {
+          setIsTaskDetailsOpen(false);
+          setActiveTaskForDetails(undefined);
+        }}
+        task={activeTaskForDetails}
       />
 
       {/* Inline Task Status Menu */}

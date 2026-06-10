@@ -43,6 +43,7 @@ interface KanbanBoardProps {
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
+  onClickCard?: (task: Task) => void;
   canEdit: boolean;
   activeColors: any;
 }
@@ -52,6 +53,7 @@ export default function KanbanBoard({
   onStatusChange,
   onEditTask,
   onDeleteTask,
+  onClickCard,
   canEdit,
   activeColors,
 }: KanbanBoardProps) {
@@ -139,6 +141,7 @@ export default function KanbanBoard({
                   task={task}
                   onEdit={onEditTask}
                   onDelete={onDeleteTask}
+                  onClick={() => onClickCard?.(task)}
                   canEdit={canEdit}
                 />
               ))}
@@ -245,11 +248,12 @@ interface KanbanCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  onClick?: () => void;
   canEdit: boolean;
   isOverlay?: boolean;
 }
 
-function KanbanCard({ task, onEdit, onDelete, canEdit, isOverlay }: KanbanCardProps) {
+function KanbanCard({ task, onEdit, onDelete, onClick, canEdit, isOverlay }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
   });
@@ -273,6 +277,7 @@ function KanbanCard({ task, onEdit, onDelete, canEdit, isOverlay }: KanbanCardPr
       style={style}
       {...attributes}
       {...listeners}
+      onClick={onClick}
       sx={{
         p: 2,
         bgcolor: theme.palette.mode === "dark" ? "rgba(30, 41, 59, 0.65)" : "#FFFFFF",

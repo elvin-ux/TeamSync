@@ -29,6 +29,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final ActivityLogService activityLogService;
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> getProjects() {
@@ -64,6 +65,7 @@ public class ProjectService {
                 .build();
 
         Project savedProject = projectRepository.save(project);
+        activityLogService.logActivity(savedProject.getId(), userEmail, "PROJECT_CREATED", savedProject.getName());
         return mapToResponse(savedProject);
     }
 
@@ -171,6 +173,14 @@ public class ProjectService {
                 .build();
 
         ProjectMember saved = projectMemberRepository.save(pm);
+
+        String currentEmail = "system@teamsync.com";
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            currentEmail = auth.getName();
+        }
+        activityLogService.logActivity(projectId, currentEmail, "MEMBER_ADDED", user.getName());
+
         return mapToMemberResponse(saved);
     }
 

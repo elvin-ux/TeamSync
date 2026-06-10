@@ -23,6 +23,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final ActivityLogService activityLogService;
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByProject(UUID projectId) {
@@ -72,6 +73,12 @@ public class TaskService {
                 .build();
 
         Task saved = taskRepository.save(task);
+
+        activityLogService.logActivity(project.getId(), userEmail, "TASK_CREATED", saved.getTitle());
+        if (assignee != null) {
+            activityLogService.logActivity(project.getId(), userEmail, "TASK_ASSIGNED", saved.getTitle() + " to " + assignee.getName());
+        }
+
         return mapToResponse(saved);
     }
 
@@ -86,6 +93,10 @@ public class TaskService {
                     .orElseThrow(() -> new ResourceNotFoundException("Assignee not found with ID: " + request.assignedToId()));
         }
 
+        boolean isCompletedTransition = !TaskStatus.COMPLETED.equals(task.getStatus()) && TaskStatus.COMPLETED.equals(parseStatus(request.status()));
+        boolean assigneeChanged = (task.getAssignedTo() == null && assignee != null) ||
+                                  (task.getAssignedTo() != null && (assignee == null || !task.getAssignedTo().getId().equals(assignee.getId())));
+
         task.setAssignedTo(assignee);
         task.setTitle(request.title());
         task.setDescription(request.description());
@@ -96,6 +107,20 @@ public class TaskService {
         task.setActualHours(request.actualHours());
 
         Task updated = taskRepository.save(task);
+
+        String currentEmail = "system@teamsync.com";
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            currentEmail = auth.getName();
+        }
+
+        if (isCompletedTransition) {
+            activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_COMPLETED", updated.getTitle());
+        }
+        if (assigneeChanged && assignee != null) {
+            activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_ASSIGNED", updated.getTitle() + " to " + assignee.getName());
+        }
+
         return mapToResponse(updated);
     }
 
@@ -110,8 +135,20 @@ public class TaskService {
     public TaskResponse updateTaskStatus(UUID taskId, TaskStatus status) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+        
+        boolean isCompletedTransition = !TaskStatus.COMPLETED.equals(task.getStatus()) && TaskStatus.COMPLETED.equals(status);
         task.setStatus(status);
         Task updated = taskRepository.save(task);
+
+        if (isCompletedTransition) {
+            String currentEmail = "system@teamsync.com";
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                currentEmail = auth.getName();
+            }
+            activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_COMPLETED", updated.getTitle());
+        }
+
         return mapToResponse(updated);
     }
 
@@ -126,8 +163,20 @@ public class TaskService {
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
         }
 
+        boolean assigneeChanged = (task.getAssignedTo() == null && assignee != null) ||
+                                  (task.getAssignedTo() != null && (assignee == null || !task.getAssignedTo().getId().equals(assignee.getId())));
         task.setAssignedTo(assignee);
         Task updated = taskRepository.save(task);
+
+        if (assigneeChanged && assignee != null) {
+            String currentEmail = "system@teamsync.com";
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                currentEmail = auth.getName();
+            }
+            activityLogService.logActivity(updated.getProject().getId(), currentEmail, "TASK_ASSIGNED", updated.getTitle() + " to " + assignee.getName());
+        }
+
         return mapToResponse(updated);
     }
 
