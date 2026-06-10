@@ -28,6 +28,7 @@ import {
   Alert,
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
@@ -43,8 +44,23 @@ import { useAuth } from "../hooks/useAuth";
 import { getThemeColors } from "../theme/theme";
 import ProjectFormDialog from "../components/project/ProjectFormDialog";
 import AddMemberDialog from "../components/project/AddMemberDialog";
+import TaskFormDialog from "../components/project/TaskFormDialog";
 import { getStatusColor, getPriorityColor } from "./ProjectsPage";
 import type { ProjectStatus } from "../types/project";
+import { taskService } from "../services/taskService";
+import type { Task, TaskStatus } from "../types/task";
+import Tooltip from "@mui/material/Tooltip";
+
+export const getTaskStatusColors = (status: TaskStatus, mode: "light" | "dark") => {
+  const colors = {
+    TODO: { bg: mode === "dark" ? "rgba(148, 163, 184, 0.1)" : "#F1F5F9", text: mode === "dark" ? "#94A3B8" : "#475569" },
+    IN_PROGRESS: { bg: mode === "dark" ? "rgba(79, 70, 229, 0.1)" : "#E0E7FF", text: "#4F46E5" },
+    REVIEW: { bg: mode === "dark" ? "rgba(245, 158, 11, 0.1)" : "#FEF3C7", text: "#D97706" },
+    TESTING: { bg: mode === "dark" ? "rgba(139, 92, 246, 0.1)" : "#F3E8FF", text: "#8B5CF6" },
+    COMPLETED: { bg: mode === "dark" ? "rgba(34, 197, 94, 0.1)" : "#DCFCE7", text: "#16A34A" },
+  };
+  return colors[status] || colors.TODO;
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -85,6 +101,10 @@ export default function ProjectWorkspacePage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | undefined>(undefined);
+  const [taskStatusMenuAnchor, setTaskStatusMenuAnchor] = useState<null | HTMLElement>(null);
+  const [activeTaskForStatus, setActiveTaskForStatus] = useState<string | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
 
   const canEdit = role === "ADMIN" || role === "LEAD";
@@ -102,6 +122,30 @@ export default function ProjectWorkspacePage() {
     queryKey: ["projectMembers", id],
     queryFn: () => projectService.getProjectMembers(id!),
     enabled: !!id,
+  });
+
+  // Query project tasks
+  const { data: tasks = [], isLoading: isTasksLoading } = useQuery({
+    queryKey: ["projectTasks", id],
+    queryFn: () => taskService.getProjectTasks(id!),
+    enabled: !!id,
+  });
+
+  // Update task status mutation
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
+      taskService.updateTaskStatus(taskId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectTasks", id] });
+    },
+  });
+
+  // Delete task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId: string) => taskService.deleteTask(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectTasks", id] });
+    },
   });
 
   // Remove member mutation
@@ -451,32 +495,214 @@ export default function ProjectWorkspacePage() {
       </CustomTabPanel>
 
       <CustomTabPanel value={tabValue} index={1}>
-        {/* Tasks Empty State Placeholder */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-            px: 2,
-            textAlign: "center",
-            borderRadius: 4,
-            bgcolor: "rgba(255,255,255,0.01)",
-            border: `1px dashed ${theme.palette.divider}`,
-          }}
-        >
-          <TaskAltRoundedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 2, opacity: 0.6 }} />
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
-            No tasks assigned yet
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 380, mb: 3, fontSize: 13.5 }}>
-            Tasks are not available yet. Project task scheduling and management is part of Phase 6.
-          </Typography>
-          <Button variant="outlined" disabled size="small">
-            Create first task
-          </Button>
-        </Box>
+        {isTasksLoading ? (
+          <Box sx={{ display: "grid", placeItems: "center", py: 4 }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : (
+          <Stack spacing={3}>
+            {canEdit && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => {
+                    setSelectedTask(undefined);
+                    setIsTaskFormOpen(true);
+                  }}
+                  size="small"
+                >
+                  Create Task
+                </Button>
+              </Box>
+            )}
+
+            {tasks.length > 0 ? (
+              <Stack spacing={2}>
+                {tasks.map((task) => {
+                  const taskStatusColors = getTaskStatusColors(task.status, theme.palette.mode);
+                  const deadlineFormatted = task.deadline
+                    ? new Date(task.deadline).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "No deadline";
+
+                  return (
+                    <Card
+                      key={task.id}
+                      sx={{
+                        p: 2.5,
+                        bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
+                        borderRadius: 3,
+                        border: `1px solid ${theme.palette.divider}`,
+                        position: "relative",
+                        transition: "all 200ms ease",
+                        "&:hover": {
+                          borderColor: activeColors.primaryAccent,
+                        },
+                      }}
+                    >
+                      <Grid container spacing={2} alignItems="center">
+                        {/* Task Status click/selector */}
+                        <Grid item xs={12} sm={3} md={2.5}>
+                          <Chip
+                            label={task.status.replace("_", " ")}
+                            onClick={(e) => {
+                              setActiveTaskForStatus(task.id);
+                              setTaskStatusMenuAnchor(e.currentTarget);
+                            }}
+                            onDelete={(e) => {
+                              setActiveTaskForStatus(task.id);
+                              setTaskStatusMenuAnchor(e.currentTarget);
+                            }}
+                            deleteIcon={<ArrowDropDownRoundedIcon />}
+                            sx={{
+                              bgcolor: taskStatusColors.bg,
+                              color: taskStatusColors.text,
+                              fontWeight: 700,
+                              fontSize: 12,
+                              cursor: "pointer",
+                              "& .MuiChip-deleteIcon": {
+                                color: taskStatusColors.text,
+                                "&:hover": {
+                                  color: taskStatusColors.text,
+                                },
+                              },
+                              "&:hover": {
+                                opacity: 0.85,
+                              },
+                            }}
+                          />
+                        </Grid>
+
+                        {/* Title & Description */}
+                        <Grid item xs={12} sm={5} md={5.5}>
+                          <Typography variant="body2" fontWeight={700}>
+                            {task.title}
+                          </Typography>
+                          {task.description && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 1,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {task.description}
+                            </Typography>
+                          )}
+                        </Grid>
+
+                        {/* Assignee & Priority & Deadline */}
+                        <Grid item xs={12} sm={4} md={4}>
+                          <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={2.5}>
+                            <Tooltip title={task.assignedToName ? `Assigned to ${task.assignedToName}` : "Unassigned"}>
+                              <Avatar
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  bgcolor: task.assignedToName ? activeColors.secondaryAccent : "action.disabledBackground",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {task.assignedToName ? task.assignedToName.charAt(0).toUpperCase() : "?"}
+                              </Avatar>
+                            </Tooltip>
+
+                            <Chip
+                              label={task.priority}
+                              size="small"
+                              color={getPriorityColor(task.priority as any)}
+                              sx={{ fontWeight: 800, fontSize: 10, height: 20 }}
+                            />
+
+                            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: "text.secondary" }}>
+                              <CalendarMonthRoundedIcon sx={{ fontSize: 14 }} />
+                              <Typography variant="caption" fontWeight={600}>
+                                {deadlineFormatted}
+                              </Typography>
+                            </Stack>
+
+                            {/* Estimate */}
+                            {task.estimatedHours && (
+                              <Chip
+                                label={`${task.estimatedHours}h`}
+                                size="small"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: 10, fontWeight: 700 }}
+                              />
+                            )}
+
+                            {/* CRUD Actions */}
+                            {canEdit && (
+                              <Stack direction="row" spacing={0.5}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setIsTaskFormOpen(true);
+                                  }}
+                                  sx={{ color: "text.secondary" }}
+                                >
+                                  <EditRoundedIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => deleteTaskMutation.mutate(task.id)}
+                                  disabled={deleteTaskMutation.isPending}
+                                >
+                                  {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.id ? (
+                                    <CircularProgress size={14} color="inherit" />
+                                  ) : (
+                                    <DeleteRoundedIcon sx={{ fontSize: 16 }} />
+                                  )}
+                                </IconButton>
+                              </Stack>
+                            )}
+                          </Stack>
+                        </Grid>
+                      </Grid>
+                    </Card>
+                  );
+                })}
+              </Stack>
+            ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  py: 6,
+                  px: 2,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  bgcolor: "rgba(255,255,255,0.01)",
+                  border: `1px dashed ${theme.palette.divider}`,
+                }}
+              >
+                <TaskAltRoundedIcon sx={{ fontSize: 44, color: "text.secondary", mb: 2, opacity: 0.6 }} />
+                <Typography variant="h4" fontWeight={700} sx={{ mb: 1 }}>
+                  No tasks assigned yet
+                </Typography>
+                <Typography color="text.secondary" sx={{ maxWidth: 380, mb: 3, fontSize: 13.5 }}>
+                  Get started by creating tasks and assigning them to project team members.
+                </Typography>
+                {canEdit && (
+                  <Button variant="outlined" size="small" onClick={() => setIsTaskFormOpen(true)}>
+                    Create first task
+                  </Button>
+                )}
+              </Box>
+            )}
+          </Stack>
+        )}
       </CustomTabPanel>
 
       <CustomTabPanel value={tabValue} index={2}>
@@ -641,6 +867,53 @@ export default function ProjectWorkspacePage() {
         projectId={id!}
         currentMemberUserIds={members.map((m) => m.userId)}
       />
+
+      {/* Task Form Dialog */}
+      <TaskFormDialog
+        open={isTaskFormOpen}
+        onClose={() => {
+          setIsTaskFormOpen(false);
+          setSelectedTask(undefined);
+        }}
+        projectId={id!}
+        task={selectedTask}
+      />
+
+      {/* Inline Task Status Menu */}
+      <Menu
+        anchorEl={taskStatusMenuAnchor}
+        open={Boolean(taskStatusMenuAnchor)}
+        onClose={() => {
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}
+      >
+        <MenuItem onClick={() => {
+          updateTaskStatusMutation.mutate({ taskId: activeTaskForStatus!, status: "TODO" });
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}>Todo</MenuItem>
+        <MenuItem onClick={() => {
+          updateTaskStatusMutation.mutate({ taskId: activeTaskForStatus!, status: "IN_PROGRESS" });
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}>In Progress</MenuItem>
+        <MenuItem onClick={() => {
+          updateTaskStatusMutation.mutate({ taskId: activeTaskForStatus!, status: "REVIEW" });
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}>Review</MenuItem>
+        <MenuItem onClick={() => {
+          updateTaskStatusMutation.mutate({ taskId: activeTaskForStatus!, status: "TESTING" });
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}>Testing</MenuItem>
+        <MenuItem onClick={() => {
+          updateTaskStatusMutation.mutate({ taskId: activeTaskForStatus!, status: "COMPLETED" });
+          setTaskStatusMenuAnchor(null);
+          setActiveTaskForStatus(null);
+        }}>Completed</MenuItem>
+      </Menu>
     </Stack>
   );
 }
