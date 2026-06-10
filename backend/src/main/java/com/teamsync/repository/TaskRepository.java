@@ -1,6 +1,7 @@
 package com.teamsync.repository;
 
 import com.teamsync.entity.Task;
+import com.teamsync.entity.TaskStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,4 +13,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
     List<Task> findByAssignedToIdOrderByCreatedAtDesc(UUID assignedToId);
     List<Task> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String title, String description);
+    long countByStatus(TaskStatus status);
+    long countByAssignedToIdAndStatus(UUID userId, TaskStatus status);
+    long countByAssignedToIdAndStatusNot(UUID userId, TaskStatus status);
 }
