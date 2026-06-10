@@ -51,6 +51,26 @@ public class CloudinaryService {
         }
     }
 
+    public String uploadFile(MultipartFile file) throws IOException {
+        if (cloudName == null || cloudName.isBlank() ||
+                apiKey == null || apiKey.isBlank() ||
+                apiSecret == null || apiSecret.isBlank()) {
+            log.warn("Cloudinary credentials not configured. Falling back to base64 Data URI mock upload.");
+            return convertToDataUri(file);
+        }
+
+        try {
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                    "folder", "teamsync/attachments",
+                    "resource_type", "auto"
+            ));
+            return (String) uploadResult.get("secure_url");
+        } catch (Exception e) {
+            log.error("Cloudinary upload failed: {}. Falling back to base64 Data URI mock.", e.getMessage());
+            return convertToDataUri(file);
+        }
+    }
+
     private String convertToDataUri(MultipartFile file) throws IOException {
         String base64Bytes = Base64.getEncoder().encodeToString(file.getBytes());
         String contentType = file.getContentType();

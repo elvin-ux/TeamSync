@@ -26,13 +26,19 @@ import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import ChatBubbleOutlineRoundedIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import AttachFileRoundedIcon from "@mui/icons-material/AttachFileRounded";
+import PictureAsPdfRoundedIcon from "@mui/icons-material/PictureAsPdfRounded";
+import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
+import InsertDriveFileRoundedIcon from "@mui/icons-material/InsertDriveFileRounded";
 
 import type { Task } from "../../types/task";
+import type { Attachment } from "../../types/attachment";
 import { useAuth } from "../../hooks/useAuth";
 import { getThemeColors } from "../../theme/theme";
 import { getTaskStatusColors } from "../../pages/ProjectWorkspacePage";
 import { getPriorityColor } from "../../pages/ProjectsPage";
 import { commentService } from "../../services/commentService";
+import { attachmentService } from "../../services/attachmentService";
 
 interface TaskDetailsDialogProps {
   open: boolean;
@@ -57,7 +63,7 @@ const getRelativeTime = (dateStr: string) => {
 export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDialogProps) {
   const theme = useTheme();
   const activeColors = getThemeColors(theme.palette.mode);
-  const { userEmail, role } = useAuth();
+  const { userEmail, role, userName } = useAuth();
   const queryClient = useQueryClient();
 
   const [newComment, setNewComment] = useState("");
@@ -102,6 +108,29 @@ export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDi
     },
   });
 
+  // Query Attachments
+  const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery({
+    queryKey: ["taskAttachments", taskId],
+    queryFn: () => attachmentService.getTaskAttachments(taskId!),
+    enabled: !!taskId && open,
+  });
+
+  // Upload Attachment Mutation
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: (file: File) => attachmentService.uploadAttachment(taskId!, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskAttachments", taskId] });
+    },
+  });
+
+  // Delete Attachment Mutation
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(taskId!, attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskAttachments", taskId] });
+    },
+  });
+
   if (!task) return null;
 
   const taskStatusColors = getTaskStatusColors(task.status as any, theme.palette.mode);
@@ -112,6 +141,36 @@ export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDi
         year: "numeric",
       })
     : "No deadline";
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const getAttachmentIcon = (fileType: string) => {
+    if (fileType.includes("pdf")) {
+      return <PictureAsPdfRoundedIcon sx={{ color: "#EF4444" }} />;
+    }
+    if (fileType.includes("image")) {
+      return <ImageRoundedIcon sx={{ color: "#10B981" }} />;
+    }
+    return <InsertDriveFileRoundedIcon sx={{ color: "#3B82F6" }} />;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size exceeds 5MB limit.");
+      return;
+    }
+
+    uploadAttachmentMutation.mutate(file);
+  };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +237,108 @@ export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDi
                   {task.description || "No description provided."}
                 </Typography>
               </Box>
+
+              {/* Attachments Section */}
+              <Box>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                  <Typography variant="subtitle2" fontWeight={750} color="text.primary">
+                    Attachments ({attachments.length})
+                  </Typography>
+                  <Button
+                    component="label"
+                    variant="text"
+                    size="small"
+                    startIcon={uploadAttachmentMutation.isPending ? <CircularProgress size={12} color="inherit" /> : <AttachFileRoundedIcon sx={{ fontSize: 14 }} />}
+                    disabled={uploadAttachmentMutation.isPending}
+                    sx={{ textTransform: "none", fontSize: 11.5 }}
+                  >
+                    Add File
+                    <input
+                      type="file"
+                      hidden
+                      onChange={handleFileUpload}
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif"
+                    />
+                  </Button>
+                </Box>
+
+                <Stack spacing={1.25} sx={{ mb: 1.5, maxHeight: 180, overflowY: "auto", pr: 0.5 }}>
+                  {isAttachmentsLoading ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+                      <CircularProgress size={16} />
+                    </Box>
+                  ) : attachments.length > 0 ? (
+                    attachments.map((att) => {
+                      const isOwner = att.uploadedByName === userName;
+                      const isLeadOrAdmin = role === "ADMIN" || role === "LEAD";
+                      const canDeleteAtt = isOwner || isLeadOrAdmin;
+
+                      return (
+                        <Card
+                          key={att.id}
+                          sx={{
+                            p: 1.25,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)",
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 2.5,
+                          }}
+                        >
+                          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ overflow: "hidden", mr: 1.5 }}>
+                            {getAttachmentIcon(att.fileType)}
+                            <Box sx={{ overflow: "hidden" }}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={700}
+                                onClick={() => window.open(att.fileUrl, "_blank")}
+                                sx={{
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                  textUnderlineOffset: 3,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  display: "block",
+                                  fontSize: 13,
+                                  "&:hover": { color: "primary.main" },
+                                }}
+                              >
+                                {att.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontSize: 9.5 }}>
+                                {formatFileSize(att.fileSize)} • Uploaded by {att.uploadedByName}
+                              </Typography>
+                            </Box>
+                          </Stack>
+
+                          {canDeleteAtt && (
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deleteAttachmentMutation.mutate(att.id)}
+                              disabled={deleteAttachmentMutation.isPending}
+                            >
+                              {deleteAttachmentMutation.isPending && deleteAttachmentMutation.variables === att.id ? (
+                                <CircularProgress size={12} color="inherit" />
+                              ) : (
+                                <DeleteRoundedIcon sx={{ fontSize: 13 }} />
+                              )}
+                            </IconButton>
+                          )}
+                        </Card>
+                      );
+                    })
+                  ) : (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", pl: 0.5, py: 0.5 }}>
+                      No files attached yet.
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+
+              <Divider sx={{ my: 1 }} />
 
               {/* Comments Section */}
               <Box>
