@@ -19,6 +19,7 @@ import {
   Tooltip,
   Typography,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
@@ -62,6 +63,7 @@ const getRelativeTime = (dateStr: string) => {
 
 export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDialogProps) {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
   const activeColors = getThemeColors(theme.palette.mode);
   const { userEmail, role, userName } = useAuth();
   const queryClient = useQueryClient();
@@ -188,6 +190,7 @@ export default function TaskDetailsDialog({ open, onClose, task }: TaskDetailsDi
       open={open}
       onClose={onClose}
       fullWidth
+      fullScreen={isXs}
       maxWidth="md"
       PaperProps={{
         sx: {

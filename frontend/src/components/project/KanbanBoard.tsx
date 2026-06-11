@@ -5,6 +5,7 @@ import {
   useDroppable,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -60,11 +61,17 @@ export default function KanbanBoard({
   const [activeId, setActiveId] = useState<string | null>(null);
   const theme = useTheme();
 
-  // Configure pointer sensors with activation constraint to bypass clicks on menus/buttons
+  // Configure sensors: pointer for mouse, touch with delay so scroll still works
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     })
   );

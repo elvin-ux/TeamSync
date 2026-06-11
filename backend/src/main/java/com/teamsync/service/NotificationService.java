@@ -20,6 +20,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SseEmitterService sseEmitterService;
 
     @Transactional
     public Notification createNotification(User recipient, String title, String message, String type) {
@@ -30,7 +31,12 @@ public class NotificationService {
                 .type(type)
                 .isRead(false)
                 .build();
-        return notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+
+        // Push real-time SSE event to connected browser sessions
+        sseEmitterService.sendNotification(recipient.getEmail(), mapToResponse(saved));
+
+        return saved;
     }
 
     @Transactional(readOnly = true)

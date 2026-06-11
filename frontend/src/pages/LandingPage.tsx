@@ -30,7 +30,7 @@ export default function LandingPage() {
             </Button>
           </Stack>
         </Stack>
-        <Box sx={{ minHeight: { xs: 300, md: 520 }, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.backgroundSecondary, position: "relative", p: 3 }}>
+        <Box sx={{ display: { xs: "none", md: "block" }, minHeight: { xs: 300, md: 520 }, border: `1px solid ${colors.border}`, borderRadius: 3, bgcolor: colors.backgroundSecondary, position: "relative", p: 3 }}>
           {["Project Alpha", "Review API Spec", "Design Workspace"].map((label, index) => (
             <Box
               key={label}

@@ -3,9 +3,12 @@ package com.teamsync.controller;
 import com.teamsync.dto.common.ApiResponse;
 import com.teamsync.dto.notification.NotificationResponse;
 import com.teamsync.service.NotificationService;
+import com.teamsync.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.security.Principal;
 import java.util.List;
@@ -17,7 +20,16 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
 
+    /**
+     * SSE stream endpoint – each authenticated user connects here to receive
+     * real-time notification push events without polling.
+     */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamNotifications(Principal principal) {
+        return sseEmitterService.addEmitter(principal.getName());
+    }
     @GetMapping
     public ResponseEntity<ApiResponse<List<NotificationResponse>>> getNotifications(Principal principal) {
         List<NotificationResponse> response = notificationService.getNotificationsByUser(principal.getName());

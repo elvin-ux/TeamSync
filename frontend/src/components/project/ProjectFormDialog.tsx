@@ -17,6 +17,8 @@ import {
   FormHelperText,
   CircularProgress,
   Typography,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectService } from "../../services/projectService";
@@ -47,6 +49,8 @@ interface ProjectFormDialogProps {
 
 export default function ProjectFormDialog({ open, onClose, project }: ProjectFormDialogProps) {
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
   const isEdit = !!project;
 
   const {
@@ -134,6 +138,7 @@ export default function ProjectFormDialog({ open, onClose, project }: ProjectFor
       onClose={isPending ? undefined : onClose}
       maxWidth="sm"
       fullWidth
+      fullScreen={isXs}
       PaperProps={{
         sx: {
           borderRadius: 3,

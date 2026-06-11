@@ -28,6 +28,7 @@ import { userService } from "../../services/userService";
 import { projectService } from "../../services/projectService";
 import { getThemeColors } from "../../theme/theme";
 import { useTheme } from "@mui/material/styles";
+import { useMediaQuery } from "@mui/material";
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -43,6 +44,7 @@ export default function AddMemberDialog({
   currentMemberUserIds,
 }: AddMemberDialogProps) {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
   const activeColors = getThemeColors(theme.palette.mode);
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -84,6 +86,7 @@ export default function AddMemberDialog({
       onClose={onClose}
       maxWidth="xs"
       fullWidth
+      fullScreen={isXs}
       PaperProps={{
         sx: { borderRadius: 3, p: 1 },
       }}

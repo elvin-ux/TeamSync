@@ -19,6 +19,7 @@ import {
   Typography,
   useTheme,
   Tooltip,
+  useMediaQuery,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
@@ -58,6 +59,7 @@ export const getPriorityColor = (priority: ProjectPriority) => {
 
 export default function ProjectsPage() {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const activeColors = getThemeColors(theme.palette.mode);
   const navigate = useNavigate();
   const { role } = useAuth();
@@ -301,7 +303,7 @@ export default function ProjectsPage() {
 
                     <CardContent sx={{ p: 3, flex: 1, display: "flex", flexDirection: "column" }}>
                       {/* Top Row: Status & Priority */}
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                      <Stack direction={isXs ? "column" : "row"} justifyContent="space-between" alignItems={isXs ? "flex-start" : "center"} sx={{ mb: 2, gap: isXs ? 1 : 0 }}>
                         <Chip
                           label={project.status.charAt(0) + project.status.slice(1).toLowerCase().replace("_", " ")}
                           size="small"
@@ -334,9 +336,9 @@ export default function ProjectsPage() {
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             display: "-webkit-box",
-                            WebkitLineClamp: 3,
+                            WebkitLineClamp: isXs ? 2 : 3,
                             WebkitBoxOrient: "vertical",
-                            minHeight: 60,
+                            minHeight: isXs ? 40 : 60,
                           }}
                         >
                           {project.description || "No description provided."}

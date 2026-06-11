@@ -11,6 +11,7 @@ import {
   Typography,
   useTheme,
   Chip,
+  useMediaQuery,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
@@ -37,6 +38,7 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 
 export default function DashboardPage() {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const activeColors = getThemeColors(theme.palette.mode);
   const { role, userName } = useAuth();
 
@@ -324,22 +326,22 @@ export default function DashboardPage() {
               <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5 }}>
                 Upcoming Deadlines
               </Typography>
-              <Box sx={{ flex: 1, overflowY: "auto" }}>
+                <Box sx={{ flex: 1, overflowY: isXs ? "visible" : "auto", maxHeight: isXs ? "none" : 300 }}>
                 {stats.userUpcomingTasks.length > 0 ? (
                   <List disablePadding>
                     {stats.userUpcomingTasks.map((task, idx) => (
                       <Box key={task.id}>
                         <ListItem sx={{ py: 1.5, px: 0 }}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: "100%" }}>
-                            <Box sx={{ mr: 2, overflow: "hidden" }}>
-                              <Typography variant="body2" fontWeight={700} color="text.primary" noWrap sx={{ display: "block" }}>
+                          <Stack direction={isXs ? "column" : "row"} justifyContent="space-between" alignItems={isXs ? "flex-start" : "center"} sx={{ width: "100%", gap: isXs ? 1 : 0 }}>
+                            <Box sx={{ mr: isXs ? 0 : 2, overflow: "hidden" }}>
+                              <Typography variant="body2" fontWeight={700} color="text.primary" noWrap={!isXs} sx={{ display: "block" }}>
                                 {task.title}
                               </Typography>
                               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
                                 Project: {task.projectName}
                               </Typography>
                             </Box>
-                            <Stack direction="row" spacing={1} alignItems="center">
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: isXs ? 0.5 : 0 }}>
                               <Chip
                                 label={task.priority}
                                 size="small"

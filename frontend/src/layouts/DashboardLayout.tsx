@@ -43,6 +43,7 @@ import { authService } from "../services/authService";
 import { notificationService } from "../services/notificationService";
 import { useThemeMode } from "../context/ThemeContext";
 import { getThemeColors } from "../theme/theme";
+import { useSSENotifications } from "../hooks/useSSENotifications";
 import CommandPalette from "../components/layout/CommandPalette";
 import NotificationsPanel from "../components/layout/NotificationsPanel";
 
@@ -63,11 +64,14 @@ export default function DashboardLayout() {
   const { mode, toggleThemeMode } = useThemeMode();
   const activeColors = getThemeColors(mode);
 
-  // Fetch unread notifications count
+  // Real-time SSE notification push (invalidates caches instantly)
+  useSSENotifications();
+
+  // Fetch unread notifications count (60 s fallback poll, SSE handles real-time)
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ["unreadNotificationsCount"],
     queryFn: notificationService.getUnreadCount,
-    refetchInterval: 15000,
+    refetchInterval: 60000,
   });
 
   // Layout states persisted in localStorage
@@ -603,7 +607,7 @@ export default function DashboardLayout() {
 
         <Stack spacing={1} sx={{ flex: 1 }}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path));
             return (
               <Box
                 key={item.path}
@@ -629,6 +633,40 @@ export default function DashboardLayout() {
         </Stack>
 
         <Divider sx={{ my: 2 }} />
+
+        {/* User Info Section (Mobile Drawer) */}
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ px: 2, py: 1.5, mb: 1 }}>
+          <Avatar
+            src={userAvatarUrl || undefined}
+            sx={{
+              width: 38,
+              height: 38,
+              bgcolor: activeColors.primaryAccent,
+              fontSize: 15,
+              fontWeight: 700,
+            }}
+          >
+            {avatarInitial}
+          </Avatar>
+          <Box sx={{ flex: 1, overflow: "hidden" }}>
+            <Typography
+              variant="body2"
+              fontWeight={700}
+              sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {userName ?? "User"}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              Member
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Divider sx={{ mb: 2 }} />
 
         <Stack spacing={2}>
           <Box
@@ -694,7 +732,9 @@ export default function DashboardLayout() {
             )
           }
           onChange={(_, newValue) => {
-            if (navItems[newValue]) {
+            if (newValue === 4) {
+              setNotificationsOpen(true);
+            } else if (navItems[newValue]) {
               navigate(navItems[newValue].path);
             }
           }}

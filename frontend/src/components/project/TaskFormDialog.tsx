@@ -17,6 +17,8 @@ import {
   FormHelperText,
   CircularProgress,
   Typography,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { taskService } from "../../services/taskService";
@@ -61,6 +63,8 @@ interface TaskFormDialogProps {
 
 export default function TaskFormDialog({ open, onClose, projectId, task }: TaskFormDialogProps) {
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
   const isEdit = !!task;
 
   const {
@@ -173,6 +177,7 @@ export default function TaskFormDialog({ open, onClose, projectId, task }: TaskF
       onClose={isPending ? undefined : onClose}
       maxWidth="sm"
       fullWidth
+      fullScreen={isXs}
       PaperProps={{
         sx: { borderRadius: 3, p: 1.5 },
       }}

@@ -25,6 +25,7 @@ import {
   Tabs,
   Typography,
   useTheme,
+  useMediaQuery,
   Alert,
   ToggleButton,
   ToggleButtonGroup,
@@ -474,6 +475,9 @@ export default function ProjectWorkspacePage() {
           aria-label="project workspace tabs"
           textColor="primary"
           indicatorColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
         >
           <Tab icon={<ListAltRoundedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Overview" sx={{ fontWeight: 700 }} />
           <Tab icon={<TaskAltRoundedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Tasks" sx={{ fontWeight: 700 }} />
