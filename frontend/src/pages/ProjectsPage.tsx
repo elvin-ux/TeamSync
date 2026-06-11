@@ -8,7 +8,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Grid,
   IconButton,
   InputAdornment,
@@ -27,11 +26,15 @@ import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
+import FolderOffRoundedIcon from "@mui/icons-material/FolderOffRounded";
 
 import { projectService } from "../services/projectService";
 import { useAuth } from "../hooks/useAuth";
 import { getThemeColors } from "../theme/theme";
 import ProjectFormDialog from "../components/project/ProjectFormDialog";
+import ProjectCardSkeleton from "../components/common/ProjectCardSkeleton";
+import EmptyState from "../components/common/EmptyState";
+import { fadeInUp, staggerContainer, pageTransition } from "../utils/animations";
 import type { Project, ProjectStatus, ProjectPriority } from "../types/project";
 
 // Status color resolver
@@ -105,22 +108,36 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: "grid", placeItems: "center", minHeight: 360 }}>
-        <CircularProgress color="primary" />
-      </Box>
+      <Stack spacing={4} component={motion.div} variants={pageTransition} initial="hidden" animate="visible" exit="exit">
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
+          <Box>
+            <Typography variant="h2">Projects</Typography>
+            <Typography color="text.secondary">Create, manage, and collaborate on your workspaces.</Typography>
+          </Box>
+        </Stack>
+        <Grid container spacing={3} component={motion.div} variants={staggerContainer} initial="hidden" animate="visible">
+          {[0, 1, 2].map((i) => (
+            <Grid item xs={12} sm={6} lg={4} key={i}>
+              <ProjectCardSkeleton />
+            </Grid>
+          ))}
+        </Grid>
+      </Stack>
     );
   }
 
   if (isError) {
     return (
-      <Typography color="error" variant="body1">
-        Failed to load projects. Please refresh the page or try again later.
-      </Typography>
+      <EmptyState
+        icon={<FolderOffRoundedIcon />}
+        title="Failed to load projects"
+        subtitle="Please refresh the page or try again later."
+      />
     );
   }
 
   return (
-    <Stack spacing={4} component={motion.div} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+    <Stack spacing={4} component={motion.div} variants={pageTransition} initial="hidden" animate="visible" exit="exit">
       {/* Header */}
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={2}>
         <Box>
@@ -270,18 +287,20 @@ export default function ProjectsPage() {
                   transition={{ duration: 0.2, delay: idx * 0.05 }}
                 >
                   <Card
+                    component={motion.div}
                     onClick={() => navigate(`/projects/${project.id}`)}
+                    whileHover={{ y: -5 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 28 }}
                     sx={{
                       height: "100%",
                       cursor: "pointer",
                       bgcolor: theme.palette.mode === "dark" ? activeColors.backgroundSecondary : "#FFFFFF",
                       borderRadius: 3,
                       border: `1px solid ${theme.palette.divider}`,
-                      transition: "transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease",
                       "&:hover": {
-                        transform: "translateY(-4px)",
                         borderColor: activeColors.primaryAccent,
-                        boxShadow: `0 12px 24px -10px ${activeColors.primaryAccent}1a`,
+                        boxShadow: `0 16px 32px -12px ${activeColors.primaryAccent}22`,
                       },
                       display: "flex",
                       flexDirection: "column",
@@ -374,66 +393,23 @@ export default function ProjectsPage() {
           </AnimatePresence>
         </Grid>
       ) : (
-        /* Empty State with Floating Orb */
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-            px: 2,
-            textAlign: "center",
-            borderRadius: 4,
-            bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.01)",
-            border: `1px dashed ${theme.palette.divider}`,
-          }}
-        >
-          {/* Floating Orb visual component */}
-          <Box
-            sx={{
-              width: 120,
-              height: 120,
-              borderRadius: "50%",
-              background: "radial-gradient(circle at 30% 30%, #8B5CF6 0%, #7C3AED 50%, #050816 100%)",
-              boxShadow: "0 20px 40px rgba(124, 58, 237, 0.3), inset -10px -10px 30px rgba(0,0,0,0.6), inset 15px 15px 30px rgba(255,255,255,0.2)",
-              animation: "float 4s ease-in-out infinite",
-              mb: 3.5,
-              "@keyframes float": {
-                "0%, 100%": { transform: "translateY(0px)" },
-                "50%": { transform: "translateY(-12px)" },
-              },
-            }}
+        projects.length === 0 ? (
+          <EmptyState
+            icon={<FolderOffRoundedIcon />}
+            title="Create your first project"
+            subtitle="Get started by launching a new collaborative workspace for your team."
+            actionLabel={canCreate ? "Create Project" : undefined}
+            onAction={canCreate ? () => setIsFormOpen(true) : undefined}
           />
-
-          <Typography variant="h3" fontWeight={700} sx={{ mb: 1 }}>
-            {projects.length === 0 ? "Create your first project" : "No projects match your filters"}
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 420, mb: 4, fontSize: 14 }}>
-            {projects.length === 0
-              ? "Get started by launching a new collaborative workspace for your team."
-              : "Try adjusting your search keywords or clearing active filters to find what you are looking for."}
-          </Typography>
-
-          {projects.length === 0 ? (
-            canCreate && (
-              <Button
-                variant="contained"
-                startIcon={<AddRoundedIcon />}
-                onClick={() => setIsFormOpen(true)}
-              >
-                Create Project
-              </Button>
-            )
-          ) : (
-            <Button variant="outlined" onClick={handleClearFilters}>
-              Reset Filters
-            </Button>
-          )}
-        </Box>
+        ) : (
+          <EmptyState
+            icon={<SearchRoundedIcon />}
+            title="No projects match your filters"
+            subtitle="Try adjusting your search keywords or clearing active filters to find what you're looking for."
+            actionLabel="Reset Filters"
+            onAction={handleClearFilters}
+          />
+        )
       )}
 
       {/* Project Form Dialog */}

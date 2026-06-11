@@ -259,12 +259,16 @@ export default function DashboardLayout() {
               </Box>
             );
 
-            return isSidebarCollapsed ? (
-              <Tooltip key={item.path} title={item.label} placement="right">
-                {content}
-              </Tooltip>
-            ) : (
-              content
+            return (
+              <React.Fragment key={item.path}>
+                {isSidebarCollapsed ? (
+                  <Tooltip title={item.label} placement="right">
+                    {content}
+                  </Tooltip>
+                ) : (
+                  content
+                )}
+              </React.Fragment>
             );
           })}
         </Stack>
